@@ -6,6 +6,7 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+	"strings"
 )
 
 func SplitNl(str string) []string {
@@ -169,4 +170,22 @@ func CalculPadding(str string, wwidth, twidth int) int {
 		padding = (twidth - wwidth) + 2
 	}
 	return padding
+}
+func JustifyText(text string, terlen int) string {
+	linlen := len(text)
+	alls := terlen - linlen
+	words := strings.Fields(text)
+	numSpacesNeeded := len(words) - 1
+	eachs := (alls / numSpacesNeeded) / 8
+
+	var justifiedText string
+	for i, word := range words {
+		justifiedText += word
+		if i < len(words)-1 {
+			for j := 0; j < eachs; j++ {
+				justifiedText += " "
+			}
+		}
+	}
+	return justifiedText
 }

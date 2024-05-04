@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"funcs/funcs"
+	"os"
 )
 
 func main() { //{anass,"","imad"}
@@ -33,8 +32,12 @@ func main() { //{anass,"","imad"}
 		padding := funcs.CalculPadding(alignement, linlen, terlen)
 		funcs.Printfinal(word, lettres, padding)
 	} else if alignement == "--align=justify" {
+		x:=funcs.JustifyText(victim,terlen)
+		word := funcs.SplitNl(x)
+		funcs.Printfinal(word,lettres,0)
+
 	}
-	for i:=0; i < terlen;i++{
+	for i := 0; i < terlen; i++ {
 		fmt.Printf("*")
 	}
 }
