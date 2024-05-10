@@ -4,26 +4,23 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"syscall"
-	"unsafe"
+	"os/exec"
+	"strconv"
 	"strings"
 )
 
+// this func ios gonna split the input by newlines
 func SplitNl(str string) []string {
 	word := ""
 	splitedword := []string{}
-	skip := false
+
 	for i := 0; i < len(str); i++ {
-		if skip {
-			skip = false
-			continue
-		}
 		if i != len(str)-1 && str[i] == '\\' && str[i+1] == 'n' {
 			if word != "" {
 				splitedword = append(splitedword, word)
 			}
 			word = ""
-			skip = true
+			i++
 			splitedword = append(splitedword, "\n")
 			continue
 		}
@@ -33,6 +30,7 @@ func SplitNl(str string) []string {
 	return splitedword
 }
 
+// this is gonna get the letters from the file depending on the input
 func GetLettres(fileContent []byte) [][]string {
 	lettres := [][]string{}
 	lettre := []string{}
@@ -62,12 +60,13 @@ func GetLettres(fileContent []byte) [][]string {
 	return lettres
 }
 
+// this is gonna test the arguments given by the user to check the validity
 func CheckArgs(sstr []string) {
 	kinds := []string{"standard", "shadow", "thinkertoy"}
 	alignments := []string{"--align=justify", "--align=right", "--align=left", "--align=center"}
 	if len(sstr) < 3 {
-		log.Fatal("please provide me with 3 arguments")
-		return
+		fmt.Println("Usage: go run . [OPTION] [STRING] [BANNER]\nExample: go run . --align=right something standard")
+		os.Exit(0)
 	}
 
 	for _, arg := range sstr {
@@ -79,7 +78,8 @@ func CheckArgs(sstr []string) {
 	}
 
 	if !contains(alignments, sstr[0]) {
-		log.Fatal("the alignment should be either one of these: --align=justify, --align=right, --align=left, --align=center")
+		fmt.Println("Usage: go run . [OPTION] [STRING] [BANNER]\nExample: go run . --align=right something standard")
+		os.Exit(0)
 	}
 
 	if !contains(kinds, sstr[2]) {
@@ -87,6 +87,7 @@ func CheckArgs(sstr []string) {
 	}
 }
 
+// this func returns true if a string is contained in a slice of str
 func contains(slice []string, str string) bool {
 	for _, s := range slice {
 		if s == str {
@@ -96,29 +97,23 @@ func contains(slice []string, str string) bool {
 	return false
 }
 
-func TerminalSize() (width int, err error) {
-	// Get the file descriptor for stdout
-	fd := int(os.Stdout.Fd())
-
-	// Create a new termios struct
-	var dimensions [4]uint16
-
-	// Use the TIOCGWINSZ ioctl to get terminal dimensions
-	if _, _, err := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		uintptr(syscall.TIOCGWINSZ),
-		uintptr(unsafe.Pointer(&dimensions)),
-	); err != 0 {
-		return 0, err
+// get the terminal size
+func TerminalSize() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
 	}
-
-	// Extract width and height from dimensions array
-	width = int(dimensions[1])
-
-	return width, nil
+	parts := strings.Split(strings.TrimSpace(string(out)), " ")
+	width, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0
+	}
+	return width
 }
 
+// this func returns the len of a slice
 func SliceLen(str [][]string) int {
 	result := 0
 	for i := 0; i < len(str); i++ {
@@ -130,7 +125,8 @@ func SliceLen(str [][]string) int {
 	return result
 }
 
-func Printfinal(str []string, lettres [][]string, padding int) {
+// this is the func that is gonna print the final result
+func Printfinal(str []string, lettres [][]string) {
 	bl := false
 	for l := 0; l < len(str); l++ {
 		if str[l] == "" {
@@ -149,7 +145,7 @@ func Printfinal(str []string, lettres [][]string, padding int) {
 		for i := 1; i < 9; i++ {
 			for j := 0; j < len(str[l]); j++ {
 				if j == 0 {
-					fmt.Printf("%*s", padding+len(lettres[str[l][j]-32][i])/2, lettres[str[l][j]-32][i])
+					fmt.Printf(lettres[str[l][j]-32][i])
 				} else {
 					fmt.Printf(lettres[str[l][j]-32][i])
 				}
@@ -160,30 +156,48 @@ func Printfinal(str []string, lettres [][]string, padding int) {
 	}
 }
 
-func CalculPadding(str string, wwidth, twidth int) int {
-	var padding int
-	if str == "--align=left" {
-		padding = 0
-	} else if str == "--align=center" {
-		padding = (twidth - wwidth) / 2
-	} else if str == "--align=right" {
-		padding = (twidth - wwidth) + 2
+// this is gonna calculate the needed padding to add depending on the alignement
+func Padding(alignement, victim string, linlen, terlen int) string {
+	if alignement == "--align=left" {
+		return victim
+	} else if alignement == "--align=center" {
+		needed := ((terlen - linlen) / 2) / 6
+		padding := ""
+		for i := 0; i < needed; i++ {
+			padding += " "
+		}
+		victim = padding + victim
+	} else if alignement == "--align=right" {
+		needed := (terlen - linlen) / 6
+		padding := ""
+		for i := 0; i < needed; i++ {
+			padding += " "
+		}
+		victim = padding + victim
 	}
-	return padding
+	return victim
 }
-func JustifyText(text string, terlen int) string {
-	linlen := len(text)
-	alls := terlen - linlen
-	words := strings.Fields(text)
-	numSpacesNeeded := len(words) - 1
-	eachs := (alls / numSpacesNeeded) / 8
 
+// this is gonna justify the input
+func JustifyText(victim string, terlen, linlen int) string {
+	alls := terlen - linlen
+	words := strings.Fields(victim)
+	numSpacesNeeded := len(words) - 1
 	var justifiedText string
-	for i, word := range words {
-		justifiedText += word
-		if i < len(words)-1 {
-			for j := 0; j < eachs; j++ {
-				justifiedText += " "
+	if numSpacesNeeded != 0 {
+		eachs := (alls / numSpacesNeeded) / 6
+		extraSpaces := (alls % numSpacesNeeded) / 6
+		for i, word := range words {
+			justifiedText += word
+			if i < len(words)-1 {
+				for j := 0; j <= eachs; j++ {
+					justifiedText += " "
+				}
+				// Add extra spaces if any
+				if extraSpaces > 0 {
+					justifiedText += " "
+					extraSpaces--
+				}
 			}
 		}
 	}

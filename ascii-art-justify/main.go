@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	"funcs/funcs"
 	"os"
+	"strings"
+
+	"funcs/funcs"
 )
 
-func main() { //{anass,"","imad"}
+func main() {
 	args := os.Args[1:]
 	funcs.CheckArgs(args)
-	// alignement := args[0]
 	alignement := args[0]
 	victim := args[1]
 	kind := args[2] + ".txt"
-	terlen, _ := funcs.TerminalSize()
+	terlen:= funcs.TerminalSize()
 	// here we split our input with new lines while keeping each one of them in an indexed place in the array
 	word := funcs.SplitNl(victim)
 	fileContent, err := os.ReadFile(kind)
@@ -29,15 +30,16 @@ func main() { //{anass,"","imad"}
 		linlen += len(x)
 	}
 	if alignement != "--align=justify" {
-		padding := funcs.CalculPadding(alignement, linlen, terlen)
-		funcs.Printfinal(word, lettres, padding)
+		padding := funcs.Padding(alignement, victim, linlen, terlen)
+		padword := funcs.SplitNl(padding)
+		funcs.Printfinal(padword, lettres)
 	} else if alignement == "--align=justify" {
-		x:=funcs.JustifyText(victim,terlen)
-		word := funcs.SplitNl(x)
-		funcs.Printfinal(word,lettres,0)
-
-	}
-	for i := 0; i < terlen; i++ {
-		fmt.Printf("*")
+		tst := strings.Fields(victim)
+		if len(tst) == 1 {
+			funcs.Printfinal(word, lettres)
+		}
+		x := funcs.JustifyText(victim, terlen, linlen)
+		jusword := funcs.SplitNl(x)
+		funcs.Printfinal(jusword, lettres)
 	}
 }
